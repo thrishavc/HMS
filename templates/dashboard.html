@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-[#0d1b4b] mb-6">Dashboard</h1>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+        <p class="text-gray-500 text-sm">Total Patients</p>
+        <p class="text-3xl font-bold text-[#0d1b4b] mt-1">{{ stats.patients }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+        <p class="text-gray-500 text-sm">Total Doctors</p>
+        <p class="text-3xl font-bold text-[#0d1b4b] mt-1">{{ stats.doctors }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+        <p class="text-gray-500 text-sm">Total Staff</p>
+        <p class="text-3xl font-bold text-[#0d1b4b] mt-1">{{ stats.staff }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+        <p class="text-gray-500 text-sm">Scheduled Appointments</p>
+        <p class="text-3xl font-bold text-[#0d1b4b] mt-1">{{ stats.scheduled }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+        <p class="text-gray-500 text-sm">Pending Bills</p>
+        <p class="text-3xl font-bold text-[#0d1b4b] mt-1">{{ stats.pending_bills }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+        <p class="text-gray-500 text-sm">Departments</p>
+        <p class="text-3xl font-bold text-[#0d1b4b] mt-1">{{ stats.departments }}</p>
+    </div>
+</div>
+{% endblock %}

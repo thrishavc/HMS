@@ -1,0 +1,4 @@
+database/hms.db
+__pycache__/
+*.pyc
+.env
