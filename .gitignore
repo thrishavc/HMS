@@ -1,4 +1,16 @@
+# Database
 database/hms.db
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
 .env
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+ENV/
