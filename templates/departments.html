@@ -5,22 +5,27 @@
 <h1 class="text-2xl font-bold text-[#0d1b4b] mb-6">Department Management</h1>
 
 <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm mb-6">
-    <h2 class="text-lg font-semibold text-[#0d1b4b] mb-4">Add Department</h2>
-    <form method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <h2 id="form-title" class="text-lg font-semibold text-[#0d1b4b] mb-4">Add Department</h2>
+    <form id="dept-form" method="POST" action="{{ url_for('departments') }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input type="hidden" name="edit_id" id="edit_id" value="">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Department Name</label>
-            <input type="text" name="name" required
+            <input type="text" name="name" id="name" required
                    class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0d1b4b]">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-            <input type="text" name="location" required
+            <input type="text" name="location" id="location" required
                    class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0d1b4b]">
         </div>
-        <div class="md:col-span-2">
-            <button type="submit"
+        <div class="md:col-span-2 flex gap-2">
+            <button type="submit" id="submit-btn"
                     class="px-5 py-2 bg-[#0d1b4b] text-white rounded-lg hover:bg-[#162a6e] transition-colors">
                 Add Department
+            </button>
+            <button type="button" id="cancel-btn"
+                    class="hidden px-5 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+                Cancel
             </button>
         </div>
     </form>
@@ -33,6 +38,7 @@
                 <th class="px-4 py-3 text-left">ID</th>
                 <th class="px-4 py-3 text-left">Name</th>
                 <th class="px-4 py-3 text-left">Location</th>
+                <th class="px-4 py-3 text-left">Actions</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -41,13 +47,68 @@
                 <td class="px-4 py-3">{{ dept.dept_id }}</td>
                 <td class="px-4 py-3">{{ dept.name }}</td>
                 <td class="px-4 py-3">{{ dept.location }}</td>
+                <td class="px-4 py-3">
+                    <div class="flex gap-2">
+                        <button type="button"
+                                class="edit-btn px-2 py-1 text-xs bg-[#0d1b4b] text-white rounded hover:bg-[#162a6e]"
+                                data-id="{{ dept.dept_id }}"
+                                data-name="{{ dept.name }}"
+                                data-location="{{ dept.location }}">
+                            Edit
+                        </button>
+                        <form method="POST" action="{{ url_for('departments_delete', dept_id=dept.dept_id) }}" class="inline"
+                              onsubmit="return confirm('Delete this department?');">
+                            <button type="submit"
+                                    class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="3" class="px-4 py-6 text-center text-gray-400">No departments found.</td>
+                <td colspan="4" class="px-4 py-6 text-center text-gray-400">No departments found.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<script>
+(function () {
+    const form = document.getElementById('dept-form');
+    const formTitle = document.getElementById('form-title');
+    const editId = document.getElementById('edit_id');
+    const submitBtn = document.getElementById('submit-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const addAction = '{{ url_for("departments") }}';
+
+    function resetForm() {
+        form.action = addAction;
+        form.reset();
+        editId.value = '';
+        formTitle.textContent = 'Add Department';
+        submitBtn.textContent = 'Add Department';
+        cancelBtn.classList.add('hidden');
+    }
+
+    document.querySelectorAll('.edit-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const id = this.dataset.id;
+            document.getElementById('name').value = this.dataset.name;
+            document.getElementById('location').value = this.dataset.location;
+            editId.value = id;
+            form.action = '/departments/update/' + id;
+            formTitle.textContent = 'Edit Department';
+            submitBtn.textContent = 'Update';
+            cancelBtn.classList.remove('hidden');
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    cancelBtn.addEventListener('click', resetForm);
+})();
+</script>
 {% endblock %}
+

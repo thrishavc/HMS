@@ -215,6 +215,66 @@ def departments():
     return render_template("departments.html", departments=dept_rows)
 
 
+@app.route("/departments/update/<int:dept_id>", methods=["POST"])
+@login_required
+@roles_required(*ADMIN_ONLY)
+def departments_update(dept_id):
+    db = get_db()
+    name = request.form.get("name", "").strip()
+    location = request.form.get("location", "").strip()
+
+    if not name or not location:
+        flash("Department name and location are required.", "error")
+    else:
+        existing = db.execute(
+            "SELECT dept_id FROM departments WHERE dept_id = ?", (dept_id,)
+        ).fetchone()
+        if not existing:
+            flash("Department not found.", "error")
+        else:
+            try:
+                db.execute(
+                    "UPDATE departments SET name = ?, location = ? WHERE dept_id = ?",
+                    (name, location, dept_id),
+                )
+                db.commit()
+                flash("Department updated successfully.", "success")
+            except sqlite3.IntegrityError:
+                flash("Department name already exists.", "error")
+
+    return redirect(url_for("departments"))
+
+
+@app.route("/departments/delete/<int:dept_id>", methods=["POST"])
+@login_required
+@roles_required(*ADMIN_ONLY)
+def departments_delete(dept_id):
+    db = get_db()
+    doctor_count = db.execute(
+        "SELECT COUNT(*) AS c FROM doctors WHERE dept_id = ?", (dept_id,)
+    ).fetchone()["c"]
+    staff_count = db.execute(
+        "SELECT COUNT(*) AS c FROM staff WHERE dept_id = ?", (dept_id,)
+    ).fetchone()["c"]
+
+    if doctor_count > 0 or staff_count > 0:
+        flash(
+            "Cannot delete department: doctors or staff are still assigned to it.",
+            "error",
+        )
+    else:
+        result = db.execute(
+            "DELETE FROM departments WHERE dept_id = ?", (dept_id,)
+        )
+        db.commit()
+        if result.rowcount:
+            flash("Department deleted successfully.", "success")
+        else:
+            flash("Department not found.", "error")
+
+    return redirect(url_for("departments"))
+
+
 @app.route("/doctors", methods=["GET", "POST"])
 @login_required
 @roles_required(*ADMIN_ONLY)
@@ -246,9 +306,11 @@ def doctors():
 
     doctor_rows = db.execute(
         """SELECT d.doctor_id, d.name, d.specialization, d.contact,
-                  dep.name AS department
+                  d.dept_id, d.user_id, dep.name AS department,
+                  u.username AS user_username
            FROM doctors d
            JOIN departments dep ON d.dept_id = dep.dept_id
+           JOIN users u ON d.user_id = u.user_id
            ORDER BY d.doctor_id"""
     ).fetchall()
 
@@ -269,6 +331,69 @@ def doctors():
         departments=departments_list,
         available_users=available_users,
     )
+
+
+@app.route("/doctors/update/<int:doctor_id>", methods=["POST"])
+@login_required
+@roles_required(*ADMIN_ONLY)
+def doctors_update(doctor_id):
+    db = get_db()
+    name = request.form.get("name", "").strip()
+    specialization = request.form.get("specialization", "").strip()
+    contact = request.form.get("contact", "").strip()
+    dept_id = request.form.get("dept_id")
+    user_id = request.form.get("user_id")
+
+    if not all([name, specialization, contact, dept_id, user_id]):
+        flash("All fields are required.", "error")
+    else:
+        existing = db.execute(
+            "SELECT doctor_id FROM doctors WHERE doctor_id = ?", (doctor_id,)
+        ).fetchone()
+        if not existing:
+            flash("Doctor not found.", "error")
+        else:
+            try:
+                db.execute(
+                    """UPDATE doctors
+                       SET name = ?, specialization = ?, contact = ?,
+                           dept_id = ?, user_id = ?
+                       WHERE doctor_id = ?""",
+                    (name, specialization, contact, dept_id, user_id, doctor_id),
+                )
+                db.commit()
+                flash("Doctor updated successfully.", "success")
+            except sqlite3.IntegrityError:
+                flash("Contact or user account already assigned.", "error")
+
+    return redirect(url_for("doctors"))
+
+
+@app.route("/doctors/delete/<int:doctor_id>", methods=["POST"])
+@login_required
+@roles_required(*ADMIN_ONLY)
+def doctors_delete(doctor_id):
+    db = get_db()
+    appt_count = db.execute(
+        "SELECT COUNT(*) AS c FROM appointments WHERE doctor_id = ?", (doctor_id,)
+    ).fetchone()["c"]
+
+    if appt_count > 0:
+        flash(
+            "Cannot delete doctor: appointments are linked to this doctor.",
+            "error",
+        )
+    else:
+        result = db.execute(
+            "DELETE FROM doctors WHERE doctor_id = ?", (doctor_id,)
+        )
+        db.commit()
+        if result.rowcount:
+            flash("Doctor deleted successfully.", "success")
+        else:
+            flash("Doctor not found.", "error")
+
+    return redirect(url_for("doctors"))
 
 
 @app.route("/staff", methods=["GET", "POST"])
@@ -302,9 +427,11 @@ def staff():
 
     staff_rows = db.execute(
         """SELECT s.staff_id, s.name, s.role_title, s.contact,
-                  dep.name AS department
+                  s.dept_id, s.user_id, dep.name AS department,
+                  u.username AS user_username
            FROM staff s
            JOIN departments dep ON s.dept_id = dep.dept_id
+           JOIN users u ON s.user_id = u.user_id
            ORDER BY s.staff_id"""
     ).fetchall()
 
@@ -325,6 +452,56 @@ def staff():
         departments=departments_list,
         available_users=available_users,
     )
+
+
+@app.route("/staff/update/<int:staff_id>", methods=["POST"])
+@login_required
+@roles_required(*ADMIN_ONLY)
+def staff_update(staff_id):
+    db = get_db()
+    name = request.form.get("name", "").strip()
+    role_title = request.form.get("role_title", "").strip()
+    contact = request.form.get("contact", "").strip()
+    dept_id = request.form.get("dept_id")
+    user_id = request.form.get("user_id")
+
+    if not all([name, role_title, contact, dept_id, user_id]):
+        flash("All fields are required.", "error")
+    else:
+        existing = db.execute(
+            "SELECT staff_id FROM staff WHERE staff_id = ?", (staff_id,)
+        ).fetchone()
+        if not existing:
+            flash("Staff member not found.", "error")
+        else:
+            try:
+                db.execute(
+                    """UPDATE staff
+                       SET name = ?, role_title = ?, contact = ?,
+                           dept_id = ?, user_id = ?
+                       WHERE staff_id = ?""",
+                    (name, role_title, contact, dept_id, user_id, staff_id),
+                )
+                db.commit()
+                flash("Staff member updated successfully.", "success")
+            except sqlite3.IntegrityError:
+                flash("Contact or user account already assigned.", "error")
+
+    return redirect(url_for("staff"))
+
+
+@app.route("/staff/delete/<int:staff_id>", methods=["POST"])
+@login_required
+@roles_required(*ADMIN_ONLY)
+def staff_delete(staff_id):
+    db = get_db()
+    result = db.execute("DELETE FROM staff WHERE staff_id = ?", (staff_id,))
+    db.commit()
+    if result.rowcount:
+        flash("Staff member deleted successfully.", "success")
+    else:
+        flash("Staff member not found.", "error")
+    return redirect(url_for("staff"))
 
 
 @app.route("/patients", methods=["GET", "POST"])
@@ -362,7 +539,7 @@ def patients():
 
     if search:
         patient_rows = db.execute(
-            """SELECT patient_id, name, gender, contact, blood_group
+            """SELECT patient_id, name, dob, gender, contact, address, blood_group
                FROM patients
                WHERE name LIKE ? OR contact LIKE ? OR blood_group LIKE ?
                ORDER BY patient_id""",
@@ -370,7 +547,7 @@ def patients():
         ).fetchall()
     else:
         patient_rows = db.execute(
-            """SELECT patient_id, name, gender, contact, blood_group
+            """SELECT patient_id, name, dob, gender, contact, address, blood_group
                FROM patients ORDER BY patient_id"""
         ).fetchall()
 
@@ -381,6 +558,74 @@ def patients():
         blood_groups=BLOOD_GROUPS,
         search=search,
     )
+
+
+@app.route("/patients/update/<int:patient_id>", methods=["POST"])
+@login_required
+@roles_required(*PATIENT_ROLES)
+def patients_update(patient_id):
+    db = get_db()
+    search = request.form.get("q", "").strip()
+    name = request.form.get("name", "").strip()
+    dob = request.form.get("dob", "").strip()
+    gender = request.form.get("gender", "")
+    contact = request.form.get("contact", "").strip()
+    address = request.form.get("address", "").strip()
+    blood_group = request.form.get("blood_group", "")
+
+    if not all([name, dob, gender, contact, address, blood_group]):
+        flash("All fields are required.", "error")
+    elif gender not in GENDERS or blood_group not in BLOOD_GROUPS:
+        flash("Invalid gender or blood group.", "error")
+    else:
+        existing = db.execute(
+            "SELECT patient_id FROM patients WHERE patient_id = ?", (patient_id,)
+        ).fetchone()
+        if not existing:
+            flash("Patient not found.", "error")
+        else:
+            try:
+                db.execute(
+                    """UPDATE patients
+                       SET name = ?, dob = ?, gender = ?, contact = ?,
+                           address = ?, blood_group = ?
+                       WHERE patient_id = ?""",
+                    (name, dob, gender, contact, address, blood_group, patient_id),
+                )
+                db.commit()
+                flash("Patient updated successfully.", "success")
+            except sqlite3.IntegrityError:
+                flash("Contact number already exists.", "error")
+
+    return redirect(url_for("patients", q=search))
+
+
+@app.route("/patients/delete/<int:patient_id>", methods=["POST"])
+@login_required
+@roles_required(*PATIENT_ROLES)
+def patients_delete(patient_id):
+    db = get_db()
+    search = request.form.get("q", "").strip()
+    appt_count = db.execute(
+        "SELECT COUNT(*) AS c FROM appointments WHERE patient_id = ?", (patient_id,)
+    ).fetchone()["c"]
+
+    if appt_count > 0:
+        flash(
+            "Cannot delete patient: appointments are linked to this patient.",
+            "error",
+        )
+    else:
+        result = db.execute(
+            "DELETE FROM patients WHERE patient_id = ?", (patient_id,)
+        )
+        db.commit()
+        if result.rowcount:
+            flash("Patient deleted successfully.", "success")
+        else:
+            flash("Patient not found.", "error")
+
+    return redirect(url_for("patients", q=search))
 
 
 @app.route("/appointments", methods=["GET", "POST"])
